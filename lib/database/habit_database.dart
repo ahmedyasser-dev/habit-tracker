@@ -37,6 +37,7 @@ class HabitDatabase extends ChangeNotifier {
     final settings = await isar.appSettings.where().findFirst();
     return settings?.firstLaunchDate;
   }
+
   /*
 
   C R U D X O P E R A T I O N
@@ -71,9 +72,78 @@ class HabitDatabase extends ChangeNotifier {
   // U P D A T E - check habit completion in db
   Future<void> updateHabitCompletion(int id, bool isCompleted) async {
     //find the specific habit
-    final habit = isar.habits.get(id);
+    final habit = await isar.habits.get(id);
+    //update completion state
+    if (habit != null) {
+      await isar.writeTxn(
+        () async {
+          //if the habit is completed -> add the current date to the completedDays list
+          if (isCompleted && !habit.completedDays.contains(DateTime.now())) {
+            //today
+            final today = DateTime.now();
+            //add the current date if its not already on the list
+            habit.completedDays.add(
+              DateTime(
+                today.year,
+                today.month,
+                today.day,
+              ),
+            );
+          }
+
+          //if habit is not completed -> remove the current date from the list
+          else {
+            //remove the current date if the habit is marked as not completed
+            habit.completedDays.removeWhere(
+              (date) =>
+                  date.year == DateTime.now().year &&
+                  date.month == DateTime.now().month &&
+                  date.day == DateTime.now().day,
+            );
+          }
+
+          //save the updated habits back to db
+          await isar.habits.put(habit);
+        },
+      );
+    }
+
+    //re-read from db
+    readHabits();
   }
+
   // U P D A T E - edit habit name in db
+  Future<void> updateHabitName(int id, String newName) async {
+    //find the specific habit
+    final habit = await isar.habits.get(id);
+
+    //update habit name
+    if (habit != null) {
+      //update name
+      await isar.writeTxn(
+        () async {
+          habit.name = newName;
+
+          //save update back to db
+          await isar.habits.put(habit);
+
+          //re-read from db
+          readHabits();
+        },
+      );
+    }
+  }
 
   // D E L E T E - delete habits from db
+  Future<void> deleteHabit(int id) async {
+    //delete habit from db
+    await isar.writeTxn(
+      () async {
+        await isar.habits.delete(id);
+      },
+    );
+
+    //re-read from db
+    readHabits();
+  }
 }
