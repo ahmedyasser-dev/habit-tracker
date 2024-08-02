@@ -28,15 +28,15 @@ class HabitDatabase extends ChangeNotifier {
     final existingSettings = await isar.appSettings.where().findFirst();
     if (existingSettings == null) {
       final settings = AppSettings()..firstLaunchDate = DateTime.now();
-      await isar.writeTxn(
-        () => isar.appSettings.put(settings),
-        //todo 4:18:40
-      );
+      await isar.writeTxn(() => isar.appSettings.put(settings));
     }
   }
 
   // get first date of app startup (for the heatmap)
-
+  Future<DateTime?> getFirstLaunchDate() async {
+    final settings = await isar.appSettings.where().findFirst();
+    return settings?.firstLaunchDate;
+  }
   /*
 
   C R U D X O P E R A T I O N
@@ -44,10 +44,36 @@ class HabitDatabase extends ChangeNotifier {
   */
 
   // List of habits
-
+  final List<Habit> currentHabits = [];
   // C R E A T E - add a new habit to db
+  Future<void> addHabit(String habitName) async {
+    //create a new habit
+    final newHabit = Habit()..name = habitName;
+    //save it to db
+    await isar.writeTxn(
+      () => isar.habits.put(newHabit),
+    );
+    //re-read from db
+    readHabits();
+  }
+
   // R E A D - read saved habits from db
-  // U P D A T E - check habit on and off in db
+  Future<void> readHabits() async {
+    //fetch all habits from db
+    List<Habit> fetchedHabits = await isar.habits.where().findAll();
+    //give to current habits
+    currentHabits.clear();
+    currentHabits.addAll(fetchedHabits);
+    //update the ui
+    notifyListeners();
+  }
+
+  // U P D A T E - check habit completion in db
+  Future<void> updateHabitCompletion(int id, bool isCompleted) async {
+    //find the specific habit
+    final habit = isar.habits.get(id);
+  }
   // U P D A T E - edit habit name in db
+
   // D E L E T E - delete habits from db
 }
